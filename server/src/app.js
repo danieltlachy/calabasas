@@ -6,6 +6,7 @@ const { rateLimit } = require("express-rate-limit");
 const path = require("path");
 const fs = require("fs");
 
+const prisma = require("./db");
 const productsRouter = require("./routes/products");
 const authRouter = require("./routes/auth");
 const usersRouter = require("./routes/users");
@@ -43,8 +44,32 @@ const authLimiter = rateLimit({
 app.use("/api", generalLimiter);
 app.use("/api/auth", authLimiter);
 
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
+app.get("/api/health", async (req, res) => {
+  let db = "unchecked";
+  let dbError = null;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    db = "ok";
+  } catch (e) {
+    db = "error";
+    dbError = e.message;
+  }
+  const env = {};
+  for (const k of [
+    "DATABASE_URL",
+    "JWT_SECRET",
+    "RESEND_API_KEY",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_PUBLISHABLE_KEY",
+    "NODE_ENV",
+    "FRONTEND_URL",
+  ]) {
+    env[k] = process.env[k] ? "set" : "missing";
+  }
+  if (db === "error") {
+    console.error(`[${new Date().toISOString()}] /api/health database error: ${dbError}`);
+  }
+  res.json({ status: "ok", database: db, databaseError: dbError ? String(dbError).slice(0, 500) : null, env });
 });
 
 app.use("/api/products", productsRouter);
