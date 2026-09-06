@@ -56,11 +56,11 @@ app.use("/api", (req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-const distDir = path.join(__dirname, "../../frontend/dist");
-if (fs.existsSync(distDir)) {
-  app.use(express.static(distDir));
+const publicDir = path.join(__dirname, "../public");
+if (fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir));
   app.use((req, res) => {
-    res.sendFile(path.join(distDir, "index.html"));
+    res.sendFile(path.join(publicDir, "index.html"));
   });
 }
 

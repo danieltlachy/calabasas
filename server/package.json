@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "build": "npx prisma generate && npm install --prefix ../frontend && npm run build --prefix ../frontend && node scripts/copy-to-public.js",
+    "vercel-build": "npx prisma generate && npm install --prefix ../frontend && npm run build --prefix ../frontend && node scripts/copy-to-public.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
