@@ -1,0 +1,9 @@
+{
+  "name": "fayuca-demo",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "npm install --prefix server && npx prisma generate --schema server/prisma/schema.prisma && npm install --prefix frontend && npm run build --prefix frontend",
+    "vercel-build": "npm install --prefix server && npx prisma generate --schema server/prisma/schema.prisma && npm install --prefix frontend && npm run build --prefix frontend"
+  }
+}
