@@ -122,6 +122,11 @@ async function main() {
     paid,
     `paid order via card -> 201 + successful PaymentIntent${succeeded ? ` for $${(succeeded.amount / 100).toFixed(2)}` : ""}`
   );
+  const placedJson = await placed.json();
+  assertOk(
+    placedJson.status === "paid",
+    `order placed with a card has status "paid" (got "${placedJson.status}")`
+  );
 
   const unknownOrder = await request(
     "/api/orders",

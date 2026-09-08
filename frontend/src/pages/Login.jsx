@@ -4,9 +4,9 @@ import { useAuth } from "../context/AuthContext";
 
 function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const { login, registrationEnabled } = useAuth();
+  const [email, setEmail] = useState("demo@calabasas.com");
+  const [password, setPassword] = useState("Demo1234!");
   const [error, setError] = useState("");
 
   async function handleSubmit(e) {
@@ -48,11 +48,26 @@ function Login() {
         </label>
         <button type="submit">Log in</button>
       </form>
+      {!registrationEnabled && (
+        <p className="auth-hint">
+          Demo account is prefilled below — just press Log in.
+        </p>
+      )}
       <p className="auth-switch">
-        <Link to="/forgot-password">Forgot your password?</Link>
+        {registrationEnabled ? (
+          <Link to="/forgot-password">Forgot your password?</Link>
+        ) : (
+          <span className="disabled-link">Forgot your password?</span>
+        )}
       </p>
       <p className="auth-switch">
-        No account? <Link to="/register">Register</Link>
+        {registrationEnabled ? (
+          <>
+            No account? <Link to="/register">Register</Link>
+          </>
+        ) : (
+          <span className="disabled-link">No account? Register</span>
+        )}
       </p>
     </main>
   );

@@ -41,7 +41,7 @@ const updateProfileRules = [
 const addressRules = [
   body("street").trim().isLength({ min: 2, max: 120 }).withMessage("Enter a valid street address"),
   body("neighborhood").trim().isLength({ min: 2, max: 120 }).withMessage("Enter a valid neighborhood"),
-  body("zipCode").trim().isLength({ min: 3, max: 10 }).withMessage("Enter a valid ZIP code"),
+  body("zipCode").trim().isLength({ min: 3, max: 10 }).matches(/^\d+$/).withMessage("ZIP code must contain only numbers"),
   body("landmarks").optional({ values: "falsy" }).trim().isLength({ max: 200 }).withMessage("Landmarks is too long"),
 ];
 
@@ -54,7 +54,7 @@ const orderRules = [
   body("customer.email").isEmail().withMessage("Enter a valid email address"),
   body("customer.street").trim().isLength({ min: 2, max: 120 }).withMessage("Enter a valid street address"),
   body("customer.neighborhood").trim().isLength({ min: 2, max: 120 }).withMessage("Enter a valid neighborhood"),
-  body("customer.zipCode").trim().isLength({ min: 3, max: 10 }).withMessage("Enter a valid ZIP code"),
+  body("customer.zipCode").trim().isLength({ min: 3, max: 10 }).matches(/^\d+$/).withMessage("ZIP code must contain only numbers"),
   body("customer.landmarks").optional({ values: "falsy" }).trim().isLength({ max: 200 }),
   body("items").isArray({ min: 1 }).withMessage("Your cart is empty"),
   body("items.*.id").isString().notEmpty().withMessage("Invalid item"),

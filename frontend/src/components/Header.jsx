@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 
 function Header() {
   const { totalItems } = useCart();
-  const { user, loading, authEnabled, logout } = useAuth();
+  const { user, loading, registrationEnabled, logout } = useAuth();
 
   return (
     <header className="site-header">
@@ -24,13 +24,11 @@ function Header() {
                 Logout
               </button>
             </>
-          ) : authEnabled ? (
+          ) : (
             <>
               <Link to="/login">Log in</Link>
-              <Link to="/register">Register</Link>
+              {registrationEnabled && <Link to="/register">Register</Link>}
             </>
-          ) : (
-            <span className="auth-hint">Demo — accounts disabled</span>
           ))}
       </nav>
     </header>

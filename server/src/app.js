@@ -7,7 +7,7 @@ const path = require("path");
 const fs = require("fs");
 
 const prisma = require("./db");
-const { authEnabled } = require("./config");
+const { registrationEnabled } = require("./config");
 const productsRouter = require("./routes/products");
 const authRouter = require("./routes/auth");
 const usersRouter = require("./routes/users");
@@ -19,7 +19,19 @@ if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
 }
 
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        "script-src": ["'self'", "https://js.stripe.com"],
+        "frame-src": ["'self'", "https://js.stripe.com"],
+        "connect-src": ["'self'", "https://api.stripe.com", "https://m.stripe.network"],
+        "img-src": ["'self'", "data:", "https://*.stripe.com"],
+      },
+    },
+  })
+);
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(express.json());
 app.use(cookieParser());
@@ -70,7 +82,11 @@ app.get("/api/health", async (req, res) => {
   if (db === "error") {
     console.error(`[${new Date().toISOString()}] /api/health database error: ${dbError}`);
   }
-  res.json({ status: "ok", authEnabled, database: db, databaseError: dbError ? String(dbError).slice(0, 500) : null, env });
+  res.json({ status: "ok", registrationEnabled, database: db, databaseError: dbError ? String(dbError).slice(0, 500) : null, env });
+});
+
+app.get("/api/stripe/config", (req, res) => {
+  res.json({ publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || null });
 });
 
 app.use("/api/products", productsRouter);

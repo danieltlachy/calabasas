@@ -115,7 +115,15 @@ function Checkout() {
           </label>
           <label>
             ZIP code
-            <input value={customer.zipCode} onChange={set("zipCode")} required />
+            <input
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={customer.zipCode}
+              onChange={(e) =>
+                setCustomer({ ...customer, zipCode: e.target.value.replace(/\D/g, "") })
+              }
+              required
+            />
           </label>
           <label>
             Landmarks (optional)

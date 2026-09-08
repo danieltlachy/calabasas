@@ -5,12 +5,12 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [authEnabled, setAuthEnabled] = useState(true);
+  const [registrationEnabled, setRegistrationEnabled] = useState(true);
 
   useEffect(() => {
     fetch("/api/health")
       .then((res) => res.json())
-      .then((data) => setAuthEnabled(data.authEnabled ?? true))
+      .then((data) => setRegistrationEnabled(data.registrationEnabled ?? true))
       .catch(() => {});
     fetch("/api/auth/me")
       .then((res) => (res.ok ? res.json() : null))
@@ -39,7 +39,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, authEnabled, login, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, registrationEnabled, login, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );

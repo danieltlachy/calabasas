@@ -16,9 +16,9 @@ import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
 import Orders from "./pages/Orders";
 
-function EnsureAuthEnabled({ children }) {
-  const { authEnabled } = useAuth();
-  if (!authEnabled) return <Navigate to="/" replace />;
+function EnsureRegistrationEnabled({ children }) {
+  const { registrationEnabled } = useAuth();
+  if (!registrationEnabled) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -32,11 +32,11 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/cart" element={<Cart />} />
-            <Route path="/register" element={<EnsureAuthEnabled><Register /></EnsureAuthEnabled>} />
-            <Route path="/verify" element={<EnsureAuthEnabled><Verify /></EnsureAuthEnabled>} />
-            <Route path="/login" element={<EnsureAuthEnabled><Login /></EnsureAuthEnabled>} />
-            <Route path="/forgot-password" element={<EnsureAuthEnabled><ForgotPassword /></EnsureAuthEnabled>} />
-            <Route path="/reset-password" element={<EnsureAuthEnabled><ResetPassword /></EnsureAuthEnabled>} />
+            <Route path="/register" element={<EnsureRegistrationEnabled><Register /></EnsureRegistrationEnabled>} />
+            <Route path="/verify" element={<EnsureRegistrationEnabled><Verify /></EnsureRegistrationEnabled>} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<EnsureRegistrationEnabled><ForgotPassword /></EnsureRegistrationEnabled>} />
+            <Route path="/reset-password" element={<EnsureRegistrationEnabled><ResetPassword /></EnsureRegistrationEnabled>} />
             <Route path="/account" element={<Account />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/order-success" element={<OrderSuccess />} />

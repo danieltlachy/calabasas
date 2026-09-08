@@ -3,6 +3,7 @@ const stripeService = require("../services/stripeService");
 
 const STATUS_LABELS = {
   pending: "Pending",
+  paid: "Paid",
   in_transit: "In transit",
   delivered: "Delivered",
 };
@@ -94,6 +95,7 @@ async function createOrder(req, res, next) {
           neighborhood: customer.neighborhood,
           zipCode: customer.zipCode,
           landmarks: customer.landmarks || null,
+          status: paymentMethodId ? "paid" : "pending",
           total,
           items: {
             create: items.map((item) => {

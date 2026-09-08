@@ -10,6 +10,8 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 function Account() {
   const { user, loading, setUser } = useAuth();
 
+  const [stripeMode, setStripeMode] = useState({ status: "loading", stripe: null });
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
@@ -36,6 +38,27 @@ function Account() {
     setEmail(user.email || "");
     loadAddresses();
   }, [user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadStripeKey() {
+      let key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+      try {
+        const res = await fetch("/api/stripe/config");
+        if (res.ok) key = (await res.json()).publishableKey || key;
+      } catch {}
+      if (!cancelled) {
+        setStripeMode({
+          status: key ? "ready" : "missing",
+          stripe: key ? loadStripe(key) : null,
+        });
+      }
+    }
+    loadStripeKey();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (loading) return <p className="page-note">Loading...</p>;
   if (!user) return <Navigate to="/login" replace />;
@@ -172,8 +195,12 @@ function Account() {
             <label>
               ZIP code
               <input
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={form.zipCode}
-                onChange={(e) => setForm({ ...form, zipCode: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, zipCode: e.target.value.replace(/\D/g, "") })
+                }
                 required
               />
             </label>
@@ -189,8 +216,10 @@ function Account() {
         </section>
       </div>
 
-      {import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ? (
-        <Elements stripe={stripePromise}>
+      {stripeMode.status === "loading" ? (
+        <p className="page-note">Loading payment...</p>
+      ) : stripeMode.status === "ready" ? (
+        <Elements stripe={stripeMode.stripe}>
           <PaymentMethodsSection />
         </Elements>
       ) : (

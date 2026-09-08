@@ -90,6 +90,7 @@ calabasas/
 | Method | Route                        | Description                          |
 | ------ | ---------------------------- | ------------------------------------ |
 | GET    | `/api/health`                | Status + env/DB diagnostics          |
+| GET    | `/api/stripe/config`         | Stripe publishable key for the card form |
 | GET    | `/api/products`              | List products                        |
 | GET    | `/api/products/:id`          | Product detail                       |
 | POST   | `/api/auth/register`         | Create account                       |
@@ -126,6 +127,10 @@ Everything below is written for beginners. Each flow shows: what you (the user) 
 what the browser/frontend does, what the server does, and what changes in the
 database. The highlighted words like "hash", "cookie", "token" and "transaction"
 are explained at the end of this section.
+
+> On the live demo (section 7) accounts are pre-disabled: use cases 1, 2 and 6
+> (register, verify, forgot/reset) return `403` there by design — use the demo
+> account to try the rest.
 
 ### Shared pieces — what runs on EVERY request
 
@@ -279,8 +284,9 @@ Step by step (`orderController.createOrder` + `POST /api/orders`):
 
 `OrderSuccess.jsx` calls `GET /api/orders/ref/FYC-...` (public, anyone with the
 reference can look it up). It shows items, total, shipping address, and reference.
-`statusLabel` maps the raw status: `pending → "Pending"`, `in_transit → "In
-transit"`, `delivered → "Delivered"`.
+`statusLabel` maps the raw status: `pending → "Pending"`, `paid → "Paid"`,
+`in_transit → "In transit"`, `delivered → "Delivered"`. Orders paid with a card
+get status `paid`; "Pay later" orders start as `pending`.
 
 ### Use case 11 — Order history
 
@@ -323,12 +329,15 @@ iframe (`CardElement`):
 - Create: `POST /api/users/me/addresses`; if it's your first address or you tick
   "primary", all others are set to non-primary first.
 - Set primary / delete: deleting the primary promotes the oldest remaining address.
+- ZIP codes are **numbers only**: the form rejects letters as you type, and the
+  server validates the same rule (`ZIP code must contain only numbers`).
 
 ### Use case 15 — Pay later vs. pay now (mental model)
 
 - "Pay later (no card)" → order is created with status `pending`; no money moves.
 - With a saved card → a real (test-mode) Stripe charge happens before the order can
-  be created. In the dashboard you'll see the PaymentIntent in Stripe test mode.
+  be created, and the order is stored with status `paid`. In the dashboard you'll
+  see the PaymentIntent in Stripe test mode.
 
 ### Words you need to know
 
@@ -390,13 +399,14 @@ RESEND_API_KEY=re_xxx            # optional (see Warnings)
 STRIPE_SECRET_KEY=sk_test_xxx
 STRIPE_PUBLISHABLE_KEY=pk_test_xxx
 FRONTEND_URL=http://localhost:5173
-AUTH_ENABLED=true        # optional: force accounts on even in production (see section 7)
+REGISTRATION_ENABLED=true   # optional: force registration on even in production (see section 7)
 ```
 
-Create `frontend/.env`:
+Optional — `frontend/.env`:
 
 ```
-VITE_STRIPE_PUBLISHABLE_KEY=pk_test_xxx
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_xxx   # fallback only; the app normally gets
+                                           # the key at runtime from /api/stripe/config
 ```
 
 ### Run in development (two terminals)
@@ -442,33 +452,163 @@ them in order with a little time in between.
 
 ---
 
-## 7. Demo lock — accounts are off in production
+## 7. Demo mode — registration off, shared demo account
 
-The live demo does **not** allow accounts on purpose: no registration, no login, no
-verify, no forgot/reset password. Friends and testers can browse products, add to
-cart, and place guest checkout orders, but nobody can create or sign in to an account
-on the deployed site.
+The live demo is a **no-signup demo**: nobody can create a new account on the deployed
+site, but a shared **demo account** is always available so friends and testers can try
+everything that lives behind a login — order history, saving a card (Stripe test
+card), and adding addresses.
 
-- Endpoints that return `403 {"error":"Accounts are disabled on this demo."}` when the
-  lock is on: `POST /api/auth/register`, `/verify`, `/resend-code`, `/login`,
-  `/forgot-password`, `/reset-password`.
-- Still works under the lock: `POST /api/auth/logout`, `GET /api/auth/me` (401 for
-  guests, as always), the whole storefront, guest checkout, and Stripe.
-- The React app knows about the lock: when it is active, the header hides "Log in" /
-  "Register" and direct visits to `/login`, `/register`, `/verify`, `/forgot-password`,
-  `/reset-password` redirect home.
+**Demo credentials**
+
+```
+email:    demo@calabasas.com
+password: Demo1234!
+```
+
+- Blocked on the live site (return `403 {"error":"Account registration is disabled on this demo."}`):
+  `POST /api/auth/register`, `/verify`, `/resend-code`, `/forgot-password`,
+  `/reset-password`. Password recovery is blocked on purpose so nobody can hijack or
+  lock out the demo account.
+- Still works: `POST /api/auth/login`, `/logout`, `GET /api/auth/me`, the whole
+  storefront, guest checkout, and Stripe.
+- The React app knows the mode from `GET /api/health` (`registrationEnabled`): when
+  off, the header shows "Log in" but hides "Register", the login page shows
+  "Forgot your password?" / "Register" **grayed out and non-clickable**, and direct
+  visits to `/register`, `/verify`, `/forgot-password`, `/reset-password` redirect
+  home.
+- The login page **prefills the demo credentials** — demo email and password are
+  already filled in, so testers just press **Log in**.
 
 How the switch works:
 
-- `server/src/config.js` → `authEnabled = process.env.AUTH_ENABLED === "true" || process.env.NODE_ENV !== "production"`.
-  So in development it is always on; in production it is off **unless** you set
-  `AUTH_ENABLED=true`.
-- `server/src/routes/auth.js` applies an `accountsEnabled` gate to the six account
-  routes; `logout` and `me` stay open.
-- `server/src/app.js` reports `authEnabled` in `GET /api/health` so the frontend knows
-  what to render.
+- `server/src/config.js` → `registrationEnabled = process.env.REGISTRATION_ENABLED === "true" || process.env.NODE_ENV !== "production"`.
+  In development it is always on; in production it is off **unless** you set
+  `REGISTRATION_ENABLED=true`.
+- `server/src/routes/auth.js` applies the `accountsOpen` gate to the five registration /
+  recovery routes; `login`, `logout`, and `me` stay open.
+- `server/src/app.js` reports `registrationEnabled` in `GET /api/health`.
+- The demo account is created/kept current with
+  `cd server && npm run seed:demo` (upserts `demo@calabasas.com`, re-hashes its
+  password, and marks the email verified). Run it once after setting up the database;
+  it also works against the production Supabase database.
 
-To turn accounts back on for the live demo, set `AUTH_ENABLED=true` in the Vercel
-environment and hit **Redeploy**. To lock it again, remove the variable and redeploy.
+To allow public registration on the live demo again, set `REGISTRATION_ENABLED=true`
+in the Vercel environment and hit **Redeploy**.
+
+---
+
+## 8. How this was deployed — the full journey
+
+The site runs free on Vercel as a **single project** (API + React build served from
+one origin). This is required by the auth design: the JWT lives in an `httpOnly`
+cookie, and cookies are only sent to the origin that set them. Splitting the API and
+the frontend into two Vercel projects looks cleaner but breaks login on the live site.
+
+### One-time setup on GitHub / Vercel
+
+1. Push this repo to GitHub, then import it in Vercel (Import Project → pick the repo).
+2. Framework Preset: **Express**. Root Directory: **`server`** (that is the only
+   directory Vercel is allowed to look at during the build).
+3. Vercel runs `npm run vercel-build` (defined in `server/package.json`):
+   `prisma generate` → build the frontend → copy the build into `server/public`.
+
+### Build plumbing (why it is structured like this)
+
+- Vercel only sees the `server` root, so all build steps are triggered from there.
+- `scripts/copy-to-public.js` copies `frontend/dist` into `server/public`; Express
+  serves it with `express.static` from `server/src/app.js` plus `helmet()` security
+  headers and the SPA fallback (`res.sendFile` of `public/index.html`).
+- Vite is configured with a fixed entry name `assets/app-[hash].js`; you don't need a
+  `vercel.json` at all — routing and headers live in Express.
+- `server/package.json` has an `allowScripts` block (Prisma 6.19.3 packages) so
+  Prisma's postinstall can run on Vercel's locked-down build environment.
+
+### Gotchas that were found the hard way (all now applied)
+
+1. **Vercel has IPv4 only; Supabase's direct host (`db.<ref>.supabase.co:5432`) is
+   IPv6 only.** The production `DATABASE_URL` must use the Supabase **pooler**
+   (`postgresql://postgres.<ref>:<PASSWORD>@aws-0-<region>.pooler.supabase.com:6543/postgres`).
+   Without this, Prisma reports `Can't reach database server`.
+2. **Pooler (transaction mode) + Prisma need `?pgbouncer=true`** on the same URL,
+   otherwise prepared statements collide with `42P05 ... already exists`.
+   (Local `.env` keeps the direct `:5432` string — that is fine for development.)
+3. **Prisma must target Vercel's runtime**: the schema's `binaryTargets` include
+   `debian-openssl-3.0.x` (native + that).
+4. The React build output must be copied into `server/public` and served by Express —
+   the whole app works on one domain then.
+5. `/api/health` was added as a diagnostics endpoint: it reports `status`,
+   `registrationEnabled`, `database` (runs `SELECT 1`) and which env vars are
+   `set`/`missing` (never their values). It is how we debugged deployment without
+   SSH access.
+6. **Saving a card silently failed in production** for two reasons now fixed:
+   helmet's default CSP blocked Stripe (`script-src`, `frame-src`, `connect-src`
+   now allow `js.stripe.com`, `api.stripe.com`, `m.stripe.network`), and the Stripe
+   publishable key was only available at build time through a `VITE_`-prefixed env
+   var that Vercel didn't have. The frontend now fetches the key at runtime from
+   `GET /api/stripe/config` (which reads the normal `STRIPE_PUBLISHABLE_KEY`),
+   so no extra `VITE_` variable is needed.
+
+### Environment variables on Vercel (Production)
+
+| Name | Value |
+| --- | --- |
+| `DATABASE_URL` | pooler URL with `?pgbouncer=true` (see above) |
+| `JWT_SECRET` | long random string |
+| `RESEND_API_KEY` | `re_...` (optional for demo) |
+| `STRIPE_SECRET_KEY` | `sk_test_...` |
+| `STRIPE_PUBLISHABLE_KEY` | `pk_test_...` |
+| `FRONTEND_URL` | `https://<project>.vercel.app` |
+| `REGISTRATION_ENABLED` | optional; `true` re-opens public registration (see section 7) |
+
+### Deployment checklist going forward
+
+1. `git add` + `git commit` + `git push` — Vercel auto-deploys to Production.
+2. If you changed an env var, it only applies to **new** deployments — click
+   **Redeploy** on the project.
+3. After deploy, open `https://<project>.vercel.app/api/health` — expect
+   `{"status":"ok","registrationEnabled":false,...,"database":"ok",...}`.
+4. Check the storefront loads, sign in with the demo account, and test a full guest
+   checkout with Stripe test card `4242 4242 4242 4242`.
+5. If you just recreated the database, run `cd server && npm run seed:demo` once so
+   the demo account exists (it works against the production Supabase DB too).
+
+---
+
+## 9. Recommendations
+
+- **Make the repo private** (or delete it) after the demo/class is over; see Warnings.
+- Install the pre-commit guard on every clone: `cd server && npm run hooks:install`.
+  It blocks `.env` files from ever being staged.
+- The demo password is public by design (it is printed in the README). If this app
+  ever moves to real accounts, delete the demo user: `DELETE FROM users WHERE email = 'demo@calabasas.com';`
+- If it ever goes live with real accounts, add a CAPTCHA and keep rate limits strict,
+  and turn back on registration with `REGISTRATION_ENABLED=true` when you're ready.
+- Real emails require a verified FROM domain in Resend — you cannot send from a free
+  email address. On the free tier only the account owner's address is deliverable.
+- Stay on Stripe **test** keys (`sk_test_`/`pk_test_`) while demoing. Switching to live
+  keys without Stripe domain verification will throw errors on checkout.
+
+---
+
+## 10. Warnings — please read
+
+- **Never commit `.env`.** If a secret leaks (Supabase DB password, `JWT_SECRET`,
+  `RESEND_API_KEY`, Stripe keys), rotate it immediately. Public GitHub repos are
+  scanned by bots within minutes — the moment a leaked key is public, assume misuse.
+- Resend free-tier quota is **~100 emails/day** and only delivered to the verified
+  owner address. If someone registers with a random address, no email is sent — the
+  verification code is written to the server console/logs instead (the test suites
+  rely on this).
+- Stripe **test** keys cannot charge real money. Don't confuse them with live keys.
+- Anyone with Vercel log access can see the console codes; the live demo doesn't issue
+  codes because registration is off, but if you re-open registration, be aware.
+- The **demo account is a shared, publicly known account** (credentials are in this
+  README). Anything a tester saves into it (addresses, a card, orders) is visible to
+  every other person who logs in with it. That is the point of a demo, but keep it
+  free of personal data.
+- A public repo exposes the emails registered during development and the whole app
+  architecture (routes, auth flow, Stripe flow) to anyone who researches it. Fine for
+  a demo, keep personal data out of it.
 
 ---

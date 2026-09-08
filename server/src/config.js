@@ -1,4 +1,4 @@
-const authEnabled =
-  process.env.AUTH_ENABLED === "true" || process.env.NODE_ENV !== "production";
+const registrationEnabled =
+  process.env.REGISTRATION_ENABLED === "true" || process.env.NODE_ENV !== "production";
 
-module.exports = { authEnabled };
+module.exports = { registrationEnabled };
