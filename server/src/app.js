@@ -7,6 +7,7 @@ const path = require("path");
 const fs = require("fs");
 
 const prisma = require("./db");
+const { authEnabled } = require("./config");
 const productsRouter = require("./routes/products");
 const authRouter = require("./routes/auth");
 const usersRouter = require("./routes/users");
@@ -69,7 +70,7 @@ app.get("/api/health", async (req, res) => {
   if (db === "error") {
     console.error(`[${new Date().toISOString()}] /api/health database error: ${dbError}`);
   }
-  res.json({ status: "ok", database: db, databaseError: dbError ? String(dbError).slice(0, 500) : null, env });
+  res.json({ status: "ok", authEnabled, database: db, databaseError: dbError ? String(dbError).slice(0, 500) : null, env });
 });
 
 app.use("/api/products", productsRouter);

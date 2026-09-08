@@ -1,7 +1,7 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 import { CartProvider } from "./context/CartContext";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import Header from "./components/Header";
 import Home from "./pages/Home";
 import ProductDetail from "./pages/ProductDetail";
@@ -16,6 +16,12 @@ import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
 import Orders from "./pages/Orders";
 
+function EnsureAuthEnabled({ children }) {
+  const { authEnabled } = useAuth();
+  if (!authEnabled) return <Navigate to="/" replace />;
+  return children;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -26,11 +32,11 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/cart" element={<Cart />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/verify" element={<Verify />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/register" element={<EnsureAuthEnabled><Register /></EnsureAuthEnabled>} />
+            <Route path="/verify" element={<EnsureAuthEnabled><Verify /></EnsureAuthEnabled>} />
+            <Route path="/login" element={<EnsureAuthEnabled><Login /></EnsureAuthEnabled>} />
+            <Route path="/forgot-password" element={<EnsureAuthEnabled><ForgotPassword /></EnsureAuthEnabled>} />
+            <Route path="/reset-password" element={<EnsureAuthEnabled><ResetPassword /></EnsureAuthEnabled>} />
             <Route path="/account" element={<Account />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/order-success" element={<OrderSuccess />} />

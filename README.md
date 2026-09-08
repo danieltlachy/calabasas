@@ -8,12 +8,13 @@ Everything runs on a single URL, so authentication works through a same-origin
 the REST API.
 
 **Live demo:** https://calabasas-gamma.vercel.app
+**Video demo** https://youtu.be/UQa_nMSyWJo
 
 ---
 
 ## 1. What the project is
 
-FAYUCA is a working storefront where you can:
+calabasas is a working storefront where you can:
 
 - Browse products (clothing and tennis shoes) with real stock from the database.
 - Register with an email, verify it with a 6-digit code, and log in.
@@ -25,7 +26,10 @@ FAYUCA is a working storefront where you can:
 - Get basic protection: rate limiting, input validation, security headers.
 
 It is a **demo**: payments use Stripe test keys, product images are placeholders,
-and emails are only deliverable to the account owner (see Warnings).
+and emails are only deliverable to the account owner (see Warnings). On the live
+site, account features (register, login, forgot/reset password) are **disabled by
+design** — friends can browse and do guest checkout, but nobody can create an account
+(see section 7 for the switch).
 
 ---
 
@@ -386,6 +390,7 @@ RESEND_API_KEY=re_xxx            # optional (see Warnings)
 STRIPE_SECRET_KEY=sk_test_xxx
 STRIPE_PUBLISHABLE_KEY=pk_test_xxx
 FRONTEND_URL=http://localhost:5173
+AUTH_ENABLED=true        # optional: force accounts on even in production (see section 7)
 ```
 
 Create `frontend/.env`:
@@ -434,5 +439,36 @@ node scripts/dev-hardening-test.js  # 10 tests
 The tests create temporary accounts, read the verification codes directly from the
 database, and clean up after themselves. They share one rate-limit window, so run
 them in order with a little time in between.
+
+---
+
+## 7. Demo lock — accounts are off in production
+
+The live demo does **not** allow accounts on purpose: no registration, no login, no
+verify, no forgot/reset password. Friends and testers can browse products, add to
+cart, and place guest checkout orders, but nobody can create or sign in to an account
+on the deployed site.
+
+- Endpoints that return `403 {"error":"Accounts are disabled on this demo."}` when the
+  lock is on: `POST /api/auth/register`, `/verify`, `/resend-code`, `/login`,
+  `/forgot-password`, `/reset-password`.
+- Still works under the lock: `POST /api/auth/logout`, `GET /api/auth/me` (401 for
+  guests, as always), the whole storefront, guest checkout, and Stripe.
+- The React app knows about the lock: when it is active, the header hides "Log in" /
+  "Register" and direct visits to `/login`, `/register`, `/verify`, `/forgot-password`,
+  `/reset-password` redirect home.
+
+How the switch works:
+
+- `server/src/config.js` → `authEnabled = process.env.AUTH_ENABLED === "true" || process.env.NODE_ENV !== "production"`.
+  So in development it is always on; in production it is off **unless** you set
+  `AUTH_ENABLED=true`.
+- `server/src/routes/auth.js` applies an `accountsEnabled` gate to the six account
+  routes; `logout` and `me` stay open.
+- `server/src/app.js` reports `authEnabled` in `GET /api/health` so the frontend knows
+  what to render.
+
+To turn accounts back on for the live demo, set `AUTH_ENABLED=true` in the Vercel
+environment and hit **Redeploy**. To lock it again, remove the variable and redeploy.
 
 ---
